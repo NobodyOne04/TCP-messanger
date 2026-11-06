@@ -1,18 +1,55 @@
-use std::env;
-mod handler;
-mod server;
 mod client;
 mod protector;
+mod protocol;
+mod server;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-	let as_server = handler::handler(&args, "-s", "false");
-	let as_server = if as_server.parse::<bool>().is_ok() {as_server.parse::<bool>().unwrap() as bool} else {false};
-	let port = handler::handler(&args, "-p", "9090");
-	let host = handler::handler(&args, "-h", "127.0.0.1");
-	if as_server {
-		server::run(format!("{}:{}", host, port));
-	} else {
-		client::run(format!("{}:{}", host, port));
-	}
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::process::ExitCode;
+
+use clap::{Args, Parser, Subcommand};
+
+/// TCP chat with a rotating session-key protector.
+#[derive(Parser)]
+#[command(version, about)]
+struct Cli {
+    #[command(subcommand)]
+    mode: Mode,
+}
+
+#[derive(Subcommand)]
+enum Mode {
+    /// Run the chat server.
+    Server(Endpoint),
+    /// Connect to a chat server.
+    Client(Endpoint),
+}
+
+#[derive(Args)]
+struct Endpoint {
+    /// Address to bind (server) or connect to (client).
+    #[arg(short = 'H', long, default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
+    host: IpAddr,
+    /// TCP port.
+    #[arg(short, long, default_value_t = 9090)]
+    port: u16,
+}
+
+impl Endpoint {
+    fn addr(&self) -> SocketAddr {
+        SocketAddr::new(self.host, self.port)
+    }
+}
+
+fn main() -> ExitCode {
+    let result = match Cli::parse().mode {
+        Mode::Server(ep) => server::run(ep.addr()).map_err(Into::into),
+        Mode::Client(ep) => client::run(ep.addr()),
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
 }

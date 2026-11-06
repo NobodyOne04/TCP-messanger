@@ -1,8 +1,9 @@
 [package]
-name = "Lab3"
-version = "0.1.0"
-authors = ["nobody <a@example.com>"]
+name = "tcp-messenger"
+version = "0.2.0"
+edition = "2021"
+description = "TCP chat client/server with a rotating session-key protector"
 
-edition = "2018"
 [dependencies]
-rand = "0.7"
+clap = { version = "4", features = ["derive"] }
+rand = "0.8"
