@@ -1,0 +1,24 @@
+# 0003. Session protector: a rotating key per message, enforced by the server
+
+- Status: Accepted
+- Date: 2026-11-19
+
+Every chat message carries the next key in a chain both sides compute; the server disconnects a
+client whose key doesn't match. It's a teaching guard against session hijacking, not
+cryptography.
+
+## Technical details
+- **Setup**: on connect the client generates a hash (`HASH_LEN = 5` digits, each 1-6) and an
+  initial key (`KEY_LEN = 10` digits, each 1-9), and sends the hash in `Hello`.
+- **Chain**: the first `Chat` key establishes it; after each message both sides compute
+  `next_session_key(key)` from the hash (the original lab's derivation: per hash digit a
+  transformation of the key, summed and truncated to 10 digits). Mismatch → `Rejected` and
+  disconnect (the 2020 version only logged it).
+- **Correctness**: `src/protector.rs` is a panic-free rewrite, tested against the original
+  algorithm; biased random ranges were fixed.
+- **Limits**: the hash is sent in plaintext, so anyone watching the connection can follow the
+  chain. Use TLS for anything real; the README says so.
+
+## Technologies and alternatives
+- Alternatives: TLS / authenticated sessions (the real answer, but not the lab's subject);
+  dropping the protector (it's the point of the original lab).
