@@ -1,0 +1,28 @@
+# 0002. Length-prefixed framed protocol; a blocking thread per client
+
+- Status: Accepted
+- Date: 2026-11-19
+
+Messages travel as tagged, length-prefixed frames, and the server runs one blocking thread per
+client feeding a shared broadcast hub. This replaced fixed 32-byte non-blocking reads that
+desynced and split messages.
+
+## Technical details
+- **Frame** (`src/protocol.rs`): 1-byte tag, then a fixed number of fields, each a `u32`
+  big-endian length plus UTF-8 bytes, at most `MAX_FIELD_LEN = 4096`. Tags: `Hello` (1,
+  client → server: hash), `Welcome` (2: user id), `Chat` (3: key, text), `Broadcast` (4:
+  from id, text), `Notice` (5: text), `Rejected` (6: reason).
+- **Server** (`src/server.rs`): accept loop; one blocking thread per client; a broadcast hub
+  sends each chat to everyone else and join/leave notices to all. `HANDSHAKE_TIMEOUT` 10 s,
+  `WRITE_TIMEOUT` 5 s. Invalid frames reject and disconnect; nothing panics on network input.
+- **Client** (`src/client.rs`): reads stdin lines (skips empty ones), stops on EOF, `/quit`
+  or `:q`, and exits cleanly when the server goes away.
+- **CLI** (`src/main.rs`): clap subcommands `server` / `client`, `-H` host, `-p` port,
+  default `127.0.0.1:9090`. Edition 2021, `Cargo.lock` committed.
+- **History**: the 2020 lab used fixed 32-byte non-blocking reads: partial reads desynced the
+  stream, messages were truncated or split mid-UTF-8, and a client spun on stdin EOF.
+
+## Technologies and alternatives
+- Involved: Rust 2021, std `net` and threads, clap 4, rand 0.8.
+- Alternatives: async (tokio: more machinery than a small chat needs); newline-delimited text
+  (breaks on multi-line or binary text); keeping fixed-size reads (the original bugs).

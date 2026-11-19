@@ -61,3 +61,7 @@ and an initial key (10 digits, 1–9) and sends the hash in `Hello`. The first
 cargo test     # protocol round-trips, protector vs. original algorithm, server integration
 cargo clippy --all-targets
 ```
+
+## Decisions
+
+Why it is built this way: [docs/adr](docs/adr/README.md).
